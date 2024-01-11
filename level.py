@@ -1,51 +1,15 @@
 import sys
-import os
-import math
 import pygame
 
 from game.resources.colors import *
 from game.utils.image_loader import load_image
 from game.utils.rating import get_rating
 from game.utils.fonts import render_text, render_number
+from game.utils.level_data import load_level_data
 from settings import key_mapping, rating
 from log import logger
 
 clock = pygame.time.Clock()
-
-
-def load_level_data(name):
-    music, bg, notes = None, None, []
-
-    with open(f"songs/{name}/data.osu", "r") as f:
-        general = False
-        hit_objects = False
-        for line in list(map(lambda s: s.strip(), f.readlines())):
-            if "[General]" in line:
-                general = True
-            elif "[HitObjects]" in line:
-                general = False
-                hit_objects = True
-            elif general and line:
-                if "AudioFilename" in line:
-                    try:
-                        music = pygame.mixer.Sound(f"songs/{name}/{line.split(': ')[1]}")
-                    except Exception as e:
-                        logger.error("Failed to load music")
-            elif hit_objects and line:
-                values = line.split(",")
-
-                time = int(values[2])
-                column = int(values[0]) % 5
-                note_type = int(values[3])
-
-                notes.append({"time": time, "column": column, "type": note_type})
-
-    try:
-        bg = load_image(f"songs/{name}/bg.jpg")
-    except Exception as e:
-        logger.error("Failed to load bg")
-
-    return bg, music, notes
 
 
 def play_level(screen, ui_manager, size, name):
@@ -87,6 +51,14 @@ def play_level(screen, ui_manager, size, name):
     note_sprites = pygame.sprite.Group()
     bottom_buttons_sprites = pygame.sprite.Group()
 
+    notes_images = [
+        load_image("skins/mania-note1.png"),
+        load_image("skins/mania-note2.png"),
+        load_image("skins/mania-note3.png"),
+        load_image("skins/mania-note2.png"),
+        load_image("skins/mania-note1.png")
+    ]
+
     # class HitImage(pygame.sprite.Sprite):
     #     def __init__(self, *groups, x, y, creation_time):
     #         super().__init__(*groups)
@@ -104,11 +76,11 @@ def play_level(screen, ui_manager, size, name):
     #         #     self.kill()
 
     class Note(pygame.sprite.Sprite):
-        def __init__(self, button_width, column, start_time, note_type):
-            super().__init__()
+        def __init__(self, *groups, image, button_width, column, start_time, note_type):
+            super().__init__(*groups)
 
-            self.image = pygame.Surface((button_width, 30))
-            self.image.fill((250, 238, 105))
+            self.image = image
+            self.image = pygame.transform.scale(self.image, (button_width, 30))
 
             self.rect = self.image.get_rect()
             self.rect.x = column * 100
@@ -136,19 +108,34 @@ def play_level(screen, ui_manager, size, name):
         def __init__(self, *groups, index):
             super().__init__(*groups)
 
-            self.image = load_image("skins/mania-key1D.png")
-            self.image = pygame.transform.scale(self.image, (button_width, button_height * 2))
+            self.image = load_image("skins/mania-key1.png")
+            self.image = pygame.transform.scale(self.image, (button_width, 200))
             self.rect = self.image.get_rect()
 
             self.index = index
             self.height = size[1]
 
-            self.rect.y = self.height - 100
+            self.rect.y = self.height - 200
             self.rect.x = index * button_width
+
+            self.clicked = False
 
         def update(self):
             nonlocal notes_clicked, score
+            global total_notes
             hits = pygame.sprite.spritecollide(self, note_sprites, False)
+
+            if pygame.key.get_pressed()[key_mapping["game_controls"][self.index]]:
+                self.clicked = True
+            else:
+                self.clicked = False
+
+            if self.clicked:
+                self.image = load_image("skins/mania-key1D.png")
+            else:
+                self.image = load_image("skins/mania-key1.png")
+            self.image = pygame.transform.scale(self.image, (button_width, button_height * 2))
+
 
             for hit in hits:
                 if pygame.key.get_pressed()[key_mapping["game_controls"][self.index]]:
@@ -158,6 +145,11 @@ def play_level(screen, ui_manager, size, name):
                         score += 100
 
                         hit.pressed = True
+                        pygame.mixer.music.load("skins/drum-hitnormal.wav")
+                        pygame.mixer.music.play()
+
+                        hit.kill()
+                        total_notes += 1
 
                     # HitImage(
                     #     all_sprites, x=hit.rect.x, y=hit.rect.y, creation_time=current_time
@@ -172,13 +164,14 @@ def play_level(screen, ui_manager, size, name):
 
     # Generate notes
     for note in notes:
-        note_sprite = Note(
+        Note(
+            note_sprites,
+            image=notes_images[note["column"]],
             button_width=button_width,
             column=note["column"],
             start_time=note["time"],
             note_type=note["type"]
         )
-        note_sprites.add(note_sprite)
 
     # Game
     while running:
@@ -215,6 +208,8 @@ def play_level(screen, ui_manager, size, name):
         bottom_buttons_sprites.draw(game_surface)
 
         # Draw borders
+        pygame.draw.rect(game_surface, (80, 34, 99), (0, size[1] - 220, game_surface_width, 10))
+
         pygame.draw.rect(game_surface, white, (0, 0, 10, size[1]))
         pygame.draw.rect(game_surface, white, (game_surface_width - 10, 0, 10, size[1]))
 
@@ -259,7 +254,11 @@ def play_level(screen, ui_manager, size, name):
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    music.stop()
                     return score, accuracy
+            if event.type == pygame.MOUSEBUTTONUP:
+                pass
+                # menu - back.png
 
         if bg:
             screen.blit(bg, (0, 0))

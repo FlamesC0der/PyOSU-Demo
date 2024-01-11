@@ -10,7 +10,7 @@ def render_text(surface, text: str, size: int, position: tuple):
     surface.blit(text_render, position)
 
 
-def render_number(surface, number_str, position):
+def render_number(surface, number_str: str, position: tuple):
     number_images = [load_image(f"skins/score-{i}.png") for i in range(10)]
     comma_image = load_image('skins/score-comma.png')
     dot_image = load_image('skins/score-dot.png')

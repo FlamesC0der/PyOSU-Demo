@@ -2,7 +2,7 @@ import os
 import pygame
 
 
-def load_image(path, color_key=None):
+def load_image(path: str, color_key=None):
     try:
         image = pygame.image.load(path).convert()
 
