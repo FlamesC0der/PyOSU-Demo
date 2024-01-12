@@ -10,6 +10,7 @@ from pyosu.game.utils.level_data import load_level_data
 from pyosu.game.utils.effects import Fader
 from pyosu.game.sprites import Rating_image, Result_types, Back_Button
 from pyosu.settings import key_mapping, rating, MANIA_COLUMNS, get_notes_images
+from pyosu.game.core import Cursor, cursor_change
 from pyosu.log import logger
 
 clock = pygame.time.Clock()
@@ -19,6 +20,8 @@ def play_level(screen, ui_manager, size, name):
     global total_notes
     logger.info("")
     logger.info(f"Play level {name}")
+
+    cursor = Cursor(screen)
 
     fader = Fader(screen, size[0], size[1])
 
@@ -80,11 +83,12 @@ def play_level(screen, ui_manager, size, name):
             self.rect.centerx = game_surface_width // 2
             self.rect.centery = size[1] // 2
 
-            self.creation_time = creation_time
+            # self.creation_time = creation_time
 
         def update(self):
-            if pygame.time.get_ticks() - self.creation_time >= 10000:
-                self.kill()
+            pass
+            # if pygame.time.get_ticks() - self.creation_time >= 10000:
+            #     self.kill()
 
     class Note(pygame.sprite.Sprite):
         def __init__(self, *groups, image, button_width, column, start_time, note_type, tickrate):
@@ -104,11 +108,6 @@ def play_level(screen, ui_manager, size, name):
             self.note_type = note_type
             self.start_time = start_time - self.tickrate
             self.height = size[1]
-
-            self.hitboxes = [
-                {"top": 0, "bottom": 10, "score_value": 100},
-                {"top": 10, "bottom": 20, "score_value": 50},
-            ]
 
         def update(self, current_time):
             global total_notes
@@ -223,7 +222,7 @@ def play_level(screen, ui_manager, size, name):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     music.stop()
-                    return score, accuracy
+                    return 0, 0
             ui_manager.process_events(event)
 
         current_time = pygame.time.get_ticks() - start_time
@@ -255,7 +254,7 @@ def play_level(screen, ui_manager, size, name):
 
         accuracy = (notes_clicked / total_notes) * 100 if 0 < total_notes else 100
 
-        render_number(game_surface, f"{combo}", (game_surface_width // 2, size[1] // 2 - 100))
+        render_number(game_surface, f"{combo}", (game_surface_width // 2 - 10, size[1] // 2 - 100), combo=True)
 
         render_number(screen, f"{score:010}", (size[0] - 220, 20))
         render_text(screen, f"{accuracy:.2f}%", 35, (size[0] - 120, 80))
@@ -269,6 +268,8 @@ def play_level(screen, ui_manager, size, name):
 
         if len(note_sprites) == 0:
             running = False
+
+        cursor.update()
 
         pygame.display.flip()
 
@@ -286,6 +287,7 @@ def play_level(screen, ui_manager, size, name):
     back_button = Back_Button(all_sprites, size=size)
 
     Rating_image(all_sprites, rating_type=rating_type, x=size[0] - 600, y=size[1] // 2)
+    Rating_image(all_sprites, rating_type=rating_type, x=size[0] - 570, y=size[1] // 2 + 30)
 
     Result_types(all_sprites, rating_type=300, x=300, y=size[1] // 2 - 200)
     Result_types(all_sprites, rating_type=200, x=350, y=size[1] // 2 - 100)
@@ -323,6 +325,8 @@ def play_level(screen, ui_manager, size, name):
         render_number(screen, f"{combo}", (150, size[1] // 2 + 200))
 
         all_sprites.draw(screen)
+
+        cursor.update()
 
         pygame.display.flip()
 

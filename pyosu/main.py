@@ -1,6 +1,9 @@
+import asyncio
 import sys
 import pygame
 import pygame_gui
+import random
+import os
 
 from pyosu.game.resources.colors import *
 from pyosu.game.utils.image_loader import load_image
@@ -8,6 +11,7 @@ from pyosu.game.utils.fonts import render_text
 from pyosu.game.utils.level_data import get_levels
 from pyosu.game.level import play_level
 from pyosu.game.utils.effects import Fader
+from pyosu.game.core import Cursor, cursor_change
 from log import logger
 
 pygame.init()
@@ -28,11 +32,14 @@ all_sprites = pygame.sprite.Group()
 
 EXIT_INTRO = pygame.USEREVENT + 1
 
+pygame.mouse.set_visible(False)
+cursor = Cursor(screen)
+
 
 class Intro(pygame.sprite.Sprite):
     def __init__(self, *group):
         super().__init__(*group)
-        self.image = load_image('game/resources/textures/FS_logo.png')
+        self.image = load_image('game/resources/sprites/FS_logo.png')
         self.image = pygame.transform.scale(self.image, (300, 300))
         self.rect = self.image.get_rect()
 
@@ -62,6 +69,8 @@ Intro(all_sprites)
 running = True
 fader = Fader(screen, width, height)
 
+Welcome_sound = pygame.mixer.Sound("game/resources/sx/welcome.mp3")
+
 # Intro
 while running:
     for event in pygame.event.get():
@@ -79,15 +88,60 @@ while running:
     pygame.display.flip()
 
 running = True
+sound = Welcome_sound.play()
+while sound.get_busy():
+    pygame.time.delay(100)
+
+
+class Osu_button(pygame.sprite.Sprite):
+    def __init__(self, *groups):
+        super().__init__(*groups)
+
+        self.image = load_image("game/resources/sprites/Osu.png")
+        self.image = pygame.transform.scale(self.image, (500, 500))
+
+        self.rect = self.image.get_rect()
+
+        self.rect.centerx = width // 2
+        self.rect.centery = height // 2
+
+
+osu_button = Osu_button(all_sprites)
+
+bg = load_image(f"game/resources/bg/{random.choice([d for d in os.listdir('game/resources/bg')])}")
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                if osu_button.rect.collidepoint(event.pos):
+                    running = False
+
+    screen.blit(bg, (0, 0))
+    all_sprites.draw(screen)
+
+    cursor.update()
+
+    pygame.display.flip()
+
+    clock.tick(60)
 
 # Main Menu
 
-
+running = True
 song_sprites = pygame.sprite.Group()
 bg = None
 
 levels = get_levels()
-selected_song = levels[0]
+
+selected_song_index = 0
+current_song_index = 0
+current_music = None
+
+selected_song = levels[selected_song_index]
 
 
 class Song(pygame.sprite.Sprite):
@@ -115,6 +169,7 @@ class Song(pygame.sprite.Sprite):
         render_text(self.image, self.name, 25, (150, 45))
 
     def update(self):
+        global current_music
         if self.selected:
             self.image.fill(grey)
         else:
@@ -133,10 +188,6 @@ for i, song in enumerate(levels):
         music=song["music"]
     )
 
-selected_song_index = 0
-current_song_index = 0
-current_music = None
-
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -150,10 +201,11 @@ while running:
             elif event.key == pygame.K_RETURN:
                 selected_song = levels[selected_song_index]["name"]
                 logger.warn(selected_song)
-                # current_music.stop()
+                if current_music:
+                    current_music.stop()
                 fader.run()
                 play_level(screen, ui_manager, size, selected_song)
-        if event.type == pygame.MOUSEWHEEL:
+        elif event.type == pygame.MOUSEWHEEL:
             if event.y > 0:
                 selected_song_index = (selected_song_index - 1) % len(levels)
             else:
@@ -172,23 +224,20 @@ while running:
             bg = song.bg
             if bg:
                 bg = pygame.transform.scale(bg, (width, height))
-            # bg, music, tickrate, notes = load_level_data(levels[i])
-            # if bg:
-            #     bg = pygame.transform.scale(bg, (width, height))
 
-            # if current_song_index != selected_song_index:
-            #     logger.warn(f"changed music form {current_song_index} to {selected_song_index}")
-            #     current_song_index = selected_song_index
-            #     if current_music:
-            #         logger.warning("stoped playing")
-            #         current_music.stop()
-            #     current_music = music
-            #     current_music.play()
-            #     logger.warning("Start playing")
+            if current_song_index != selected_song_index:
+                current_song_index = selected_song_index
+                if current_music:
+                    current_music.stop()
+                current_music = song.music
+                current_music.play(-1)
         else:
             song.selected = False
 
     song_sprites.update()
     song_sprites.draw(screen)
+    cursor.update()
 
     pygame.display.flip()
+
+    clock.tick(60)

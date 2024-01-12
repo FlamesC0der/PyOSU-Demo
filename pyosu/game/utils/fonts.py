@@ -10,8 +10,11 @@ def render_text(surface, text: str, size: int, position: tuple):
     surface.blit(text_render, position)
 
 
-def render_number(surface, number_str: str, position: tuple):
-    number_images = [load_image(f"skins/score-{i}.png") for i in range(10)]
+def render_number(surface, number_str: str, position: tuple, combo=False):
+    if combo:
+        number_images = [load_image(f"skins/combo-{i}.png") for i in range(10)]
+    else:
+        number_images = [load_image(f"skins/score-{i}.png") for i in range(10)]
     comma_image = load_image('skins/score-comma.png')
     dot_image = load_image('skins/score-dot.png')
     percent_image = load_image('skins/score-percent.png')

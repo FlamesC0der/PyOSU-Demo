@@ -40,11 +40,11 @@ def load_level_data(name):
                 if "AudioFilename" in line:
                     try:
                         music = pygame.mixer.Sound(f"songs/{name}/{line.split(': ')[1]}")
-                    except Exception as e:
+                    except Exception:
                         logger.error("Failed to load music")
             elif difficulty and line:
                 if "SliderTickRate" in line:
-                    tickrate = int(line.split(":")[1])
+                    tickrate = float(line.split(":")[1])
 
             elif hit_objects and line:
                 values = line.split(",")

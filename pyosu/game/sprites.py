@@ -1,7 +1,6 @@
 import pygame
 
 from pyosu.game.utils.image_loader import load_image
-from pyosu.game.utils.fonts import render_number
 
 
 class Rating_image(pygame.sprite.Sprite):
